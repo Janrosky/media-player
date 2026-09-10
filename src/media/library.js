@@ -1,17 +1,27 @@
 export const MEDIA_ACCEPT = 'audio/*,video/*'
 
 const MEDIA_TYPES = new Set(['audio', 'video'])
+const AUDIO_EXTENSIONS = new Set(['mp3', 'wav', 'ogg', 'oga', 'opus', 'm4a', 'aac', 'flac', 'weba', 'wma', 'alac'])
 
-function getMediaType(file) {
+export function getMediaType(file, options = {}) {
   const mediaType = file.type.split('/')[0]
-  return MEDIA_TYPES.has(mediaType) ? mediaType : null
+  if (MEDIA_TYPES.has(mediaType)) return mediaType
+  if (options.allowExtensionFallback && AUDIO_EXTENSIONS.has(getFileExtension(file.name))) return 'audio'
+  return null
+}
+
+function getFileExtension(fileName) {
+  const extension = fileName.slice(fileName.lastIndexOf('.') + 1).toLowerCase()
+  return extension === fileName.toLowerCase() ? '' : extension
 }
 
 function getFileKey(file) {
-  return `${file.name}\u0000${file.size}\u0000${file.lastModified}`
+  const relativePath = file.webkitRelativePath ? `${file.webkitRelativePath}\u0000` : ''
+  return `${relativePath}${file.name}\u0000${file.size}\u0000${file.lastModified}`
 }
 
-export function importFiles(fileList, existingEntries, createObjectURL = URL.createObjectURL) {
+export function importFiles(fileList, existingEntries, createObjectURL = URL.createObjectURL, options = {}) {
+  const allowedMediaTypes = options.allowedMediaTypes ?? MEDIA_TYPES
   const entries = []
   const existingKeys = new Set(existingEntries.map((entry) => entry.key))
   const summary = {
@@ -21,8 +31,8 @@ export function importFiles(fileList, existingEntries, createObjectURL = URL.cre
   }
 
   for (const file of fileList) {
-    const mediaType = getMediaType(file)
-    if (!mediaType) {
+    const mediaType = getMediaType(file, options)
+    if (!mediaType || !allowedMediaTypes.has(mediaType)) {
       summary.unsupported += 1
       continue
     }
@@ -39,6 +49,7 @@ export function importFiles(fileList, existingEntries, createObjectURL = URL.cre
       key,
       file,
       name: file.name,
+      relativePath: file.webkitRelativePath || '',
       mime: file.type,
       mediaType,
       size: file.size,

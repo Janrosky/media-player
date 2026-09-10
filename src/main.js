@@ -18,7 +18,13 @@ app.innerHTML = `
         <span aria-hidden="true">+</span>
         Añadir archivos
       </button>
+      <button class="button button-secondary add-folder-button" type="button" aria-describedby="folder-support-note import-status">
+        <span aria-hidden="true">+</span>
+        Añadir carpeta
+      </button>
       <input id="media-input" class="sr-only" type="file" multiple accept="${MEDIA_ACCEPT}" />
+      <input id="folder-input" class="sr-only" type="file" multiple webkitdirectory />
+      <p id="folder-support-note" class="sr-only">Selecciona una carpeta completa. Sus archivos permanecen en este dispositivo.</p>
     </div>
   </header>
 
@@ -34,8 +40,9 @@ app.innerHTML = `
       <div class="empty-state empty-library">
         <span class="empty-icon" aria-hidden="true">+</span>
         <h2>Aún no hay archivos</h2>
-        <p>Añade música o vídeo desde tu dispositivo para empezar a escuchar.</p>
+        <p>Añade música o vídeo, o una carpeta completa de música. Tus archivos permanecen en este dispositivo.</p>
         <button class="button button-secondary add-files-button" type="button">Añadir archivos</button>
+        <button class="button button-secondary add-folder-button" type="button" aria-describedby="folder-support-note import-status">Añadir carpeta</button>
       </div>
       <ul class="media-list library-list" aria-label="Archivos de la biblioteca" hidden></ul>
       <div class="library-footer">
@@ -102,7 +109,11 @@ app.innerHTML = `
 `
 
   const fileInput = document.querySelector('#media-input')
+  const folderInput = document.querySelector('#folder-input')
+  if ('webkitdirectory' in folderInput) folderInput.webkitdirectory = true
   const addFilesButtons = document.querySelectorAll('.add-files-button')
+  const addFolderButtons = document.querySelectorAll('.add-folder-button')
+  const folderSupportNote = document.querySelector('#folder-support-note')
   const clearLibraryButton = document.querySelector('.clear-library-button')
   const importStatus = document.querySelector('#import-status')
   const libraryList = document.querySelector('.library-list')
@@ -139,6 +150,7 @@ app.innerHTML = `
     button.setAttribute('aria-label', `Seleccionar ${entry.name}`)
     name.className = 'media-name'
     name.textContent = entry.name
+    if (entry.relativePath) button.title = entry.relativePath
     metadata.className = 'media-metadata'
     metadata.textContent = `${entry.mediaType === 'audio' ? 'Audio' : 'Vídeo'} · ${formatFileSize(entry.size)}`
     button.append(name, metadata)
@@ -191,14 +203,26 @@ app.innerHTML = `
     fileInput.click()
   }
 
-  function handleFileSelection() {
-    if (fileInput.files.length === 0) return
+  function openFolderPicker() {
+    folderInput.click()
+  }
 
-    const result = importFiles(fileInput.files, libraryEntries)
+  function handleFileSelection(input, options) {
+    if (input.files.length === 0) {
+      if (options?.isFolder) importStatus.textContent = 'No se encontraron archivos en la carpeta seleccionada.'
+      input.value = ''
+      return
+    }
+
+    const result = importFiles(input.files, libraryEntries, URL.createObjectURL, options)
     libraryEntries = libraryEntries.concat(result.entries)
     renderRows()
-    updateSummary(result.summary)
-    fileInput.value = ''
+    if (options?.isFolder && result.summary.added === 0 && result.summary.duplicates === 0 && result.summary.unsupported > 0) {
+      importStatus.textContent = 'No se encontraron archivos de audio compatibles en la carpeta seleccionada.'
+    } else {
+      updateSummary(result.summary)
+    }
+    input.value = ''
   }
 
   function clearLibrary() {
@@ -211,9 +235,23 @@ app.innerHTML = `
   }
 
   addFilesButtons.forEach((button) => button.addEventListener('click', openFilePicker))
-  fileInput.addEventListener('change', handleFileSelection)
+  addFolderButtons.forEach((button) => button.addEventListener('click', openFolderPicker))
+  fileInput.addEventListener('change', () => handleFileSelection(fileInput))
+  folderInput.addEventListener('change', () => handleFileSelection(folderInput, {
+    allowedMediaTypes: new Set(['audio']),
+    allowExtensionFallback: true,
+    isFolder: true,
+  }))
   libraryList.addEventListener('click', handleRowSelection)
   queueList.addEventListener('click', handleRowSelection)
   clearLibraryButton.addEventListener('click', clearLibrary)
+
+  if (!('webkitdirectory' in folderInput)) {
+    addFolderButtons.forEach((button) => {
+      button.disabled = true
+      button.setAttribute('aria-describedby', 'folder-support-note')
+    })
+    folderSupportNote.textContent = 'La selección de carpetas no está disponible en este navegador. Añade archivos individuales.'
+  }
 
   renderRows()
