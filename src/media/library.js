@@ -2,11 +2,18 @@ export const MEDIA_ACCEPT = 'audio/*,video/*'
 
 const MEDIA_TYPES = new Set(['audio', 'video'])
 const AUDIO_EXTENSIONS = new Set(['mp3', 'wav', 'ogg', 'oga', 'opus', 'm4a', 'aac', 'flac', 'weba', 'wma', 'alac'])
+const EXTENSION_FALLBACK_MIME_TYPES = new Set(['', 'application/octet-stream'])
 
 export function getMediaType(file, options = {}) {
-  const mediaType = file.type.split('/')[0]
+  const mimeType = typeof file.type === 'string' ? file.type.toLowerCase() : ''
+  const mediaType = mimeType.split('/')[0]
   if (MEDIA_TYPES.has(mediaType)) return mediaType
-  if (options.allowExtensionFallback && AUDIO_EXTENSIONS.has(getFileExtension(file.name))) return 'audio'
+  if (
+    options.isFolder &&
+    options.allowExtensionFallback &&
+    EXTENSION_FALLBACK_MIME_TYPES.has(mimeType) &&
+    AUDIO_EXTENSIONS.has(getFileExtension(file.name))
+  ) return 'audio'
   return null
 }
 
@@ -30,7 +37,7 @@ export function importFiles(fileList, existingEntries, createObjectURL = URL.cre
     unsupported: 0,
   }
 
-  for (const file of fileList) {
+  for (const file of Array.from(fileList ?? [])) {
     const mediaType = getMediaType(file, options)
     if (!mediaType || !allowedMediaTypes.has(mediaType)) {
       summary.unsupported += 1

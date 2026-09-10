@@ -1,5 +1,6 @@
 import './style.css'
 import { formatFileSize, importFiles, MEDIA_ACCEPT, revokeEntry } from './media/library.js'
+import { createMediaPlayer, formatTime, getAdjacentIndex, PLAYER_STATES } from './media/player.js'
 
 const app = document.querySelector('#app')
 
@@ -61,7 +62,10 @@ app.innerHTML = `
         <span class="status-label"><span class="status-dot" aria-hidden="true"></span><span class="player-status">En espera</span></span>
       </div>
       <div class="player-empty" aria-live="polite">
-        <div class="record" aria-hidden="true"><span>U</span></div>
+        <div class="media-region">
+          <div class="record" aria-hidden="true"><span>U</span></div>
+          <div class="media-element-container"></div>
+        </div>
         <p class="player-message">Selecciona un archivo para reproducirlo</p>
         <p class="player-submessage">Elige una pista de tu biblioteca cuando esté lista.</p>
       </div>
@@ -72,13 +76,13 @@ app.innerHTML = `
           <button class="icon-button" type="button" aria-label="Archivo siguiente" disabled>⏭</button>
         </div>
         <div class="timeline-row">
-          <span>0:00</span>
+          <span class="current-time">0:00</span>
           <label class="sr-only" for="progress">Progreso de reproducción</label>
-          <input id="progress" type="range" min="0" max="100" value="0" disabled />
-          <span>0:00</span>
+          <input id="progress" type="range" min="0" max="0" value="0" step="0.1" aria-label="Progreso de reproducción" disabled />
+          <span class="duration-time">--:--</span>
         </div>
         <div class="volume-row">
-          <button class="icon-button small-button" type="button" aria-label="Silenciar" disabled>⌕</button>
+          <button class="icon-button small-button mute-button" type="button" aria-label="Silenciar" disabled>⌕</button>
           <label class="sr-only" for="volume">Volumen</label>
           <input id="volume" type="range" min="0" max="100" value="70" disabled />
         </div>
@@ -110,7 +114,8 @@ app.innerHTML = `
 
   const fileInput = document.querySelector('#media-input')
   const folderInput = document.querySelector('#folder-input')
-  if ('webkitdirectory' in folderInput) folderInput.webkitdirectory = true
+  const folderPickerSupported = 'webkitdirectory' in folderInput
+  if (folderPickerSupported) folderInput.webkitdirectory = true
   const addFilesButtons = document.querySelectorAll('.add-files-button')
   const addFolderButtons = document.querySelectorAll('.add-folder-button')
   const folderSupportNote = document.querySelector('#folder-support-note')
@@ -124,10 +129,93 @@ app.innerHTML = `
   const queueCount = document.querySelector('.queue-count')
   const libraryTotal = document.querySelector('.library-total')
   const playerMessage = document.querySelector('.player-message')
+  const playerSubmessage = document.querySelector('.player-submessage')
   const playerStatus = document.querySelector('.player-status')
+  const playButton = document.querySelector('.play-button')
+  const mediaRegion = document.querySelector('.media-region')
+  const mediaElementContainer = document.querySelector('.media-element-container')
+  const previousButton = document.querySelector('.transport-controls .icon-button:first-child')
+  const nextButton = document.querySelector('.transport-controls .icon-button:last-child')
+  const progress = document.querySelector('#progress')
+  const currentTime = document.querySelector('.current-time')
+  const durationTime = document.querySelector('.duration-time')
+  const muteButton = document.querySelector('.mute-button')
+  const volumeInput = document.querySelector('#volume')
 
   let libraryEntries = []
   let selectedEntryId = null
+
+  function selectedIndex() {
+    return libraryEntries.findIndex((entry) => entry.id === selectedEntryId)
+  }
+
+  function updateTransportButtons() {
+    const index = selectedIndex()
+    previousButton.disabled = index <= 0
+    nextButton.disabled = index < 0 || index >= libraryEntries.length - 1
+  }
+
+  const playerStateLabels = {
+    [PLAYER_STATES.idle]: 'En espera',
+    [PLAYER_STATES.loading]: 'Cargando',
+    [PLAYER_STATES.ready]: 'Listo',
+    [PLAYER_STATES.playing]: 'Reproduciendo',
+    [PLAYER_STATES.paused]: 'Pausado',
+    [PLAYER_STATES.ended]: 'Finalizado',
+    [PLAYER_STATES.error]: 'Error',
+  }
+
+  function updateVolumeControls(volume, muted) {
+    if (!Number.isFinite(volume)) return
+    volumeInput.value = String(Math.min(100, Math.max(0, volume * 100)))
+    muteButton.textContent = muted ? '🔇' : '🔊'
+    muteButton.setAttribute('aria-label', muted ? 'Activar sonido' : 'Silenciar')
+  }
+
+  const player = createMediaPlayer({
+    onStateChange: ({ state, entry, volume, muted }) => {
+      playerStatus.textContent = playerStateLabels[state]
+      playButton.disabled = !entry
+      const isPlaying = state === PLAYER_STATES.playing
+      playButton.textContent = isPlaying ? '⏸' : '▶'
+      playButton.setAttribute('aria-label', isPlaying ? 'Pausar' : 'Reproducir')
+      progress.disabled = !entry || progress.max === '0'
+      muteButton.disabled = !entry
+      volumeInput.disabled = !entry
+      updateVolumeControls(volume, muted)
+      updateTransportButtons()
+      if (!entry) {
+        currentTime.textContent = '0:00'
+        durationTime.textContent = '--:--'
+        progress.max = '0'
+        progress.value = '0'
+      }
+      mediaRegion.classList.toggle('has-video', entry?.mediaType === 'video')
+      if (state === PLAYER_STATES.error) {
+        playerSubmessage.textContent = 'No se pudo decodificar este archivo. Puedes elegir otro o reintentarlo.'
+      } else if (entry) {
+        playerSubmessage.textContent = playerStateLabels[state]
+      }
+    },
+    onTimeUpdate: ({ currentTime: elapsed, duration, seekable }) => {
+      const hasDuration = Number.isFinite(duration) && duration > 0
+      const canSeek = hasDuration && seekable?.length > 0
+      currentTime.textContent = formatTime(elapsed)
+      durationTime.textContent = formatTime(duration)
+      progress.max = hasDuration ? String(duration) : '0'
+      progress.value = hasDuration ? String(Math.min(duration, Math.max(0, elapsed || 0))) : '0'
+      progress.disabled = !canSeek
+    },
+    onEnded: () => {
+      const nextIndex = getAdjacentIndex(selectedIndex(), 1, libraryEntries.length)
+      if (nextIndex === -1) {
+        playerSubmessage.textContent = 'Fin de la cola.'
+        updateTransportButtons()
+        return
+      }
+      selectEntry(libraryEntries[nextIndex].id, { autoplay: true })
+    },
+  })
 
   function updateSummary(summary) {
     const messages = []
@@ -182,15 +270,18 @@ app.innerHTML = `
 
     if (selectedEntry) {
       playerMessage.textContent = selectedEntry.name
-      playerStatus.textContent = 'Seleccionado'
     } else {
       playerMessage.textContent = 'Selecciona un archivo para reproducirlo'
-      playerStatus.textContent = 'En espera'
     }
   }
 
-  function selectEntry(entryId) {
+  function selectEntry(entryId, options = {}) {
     selectedEntryId = entryId
+    const selectedEntry = libraryEntries.find((entry) => entry.id === entryId)
+    if (selectedEntry) {
+      player.load(selectedEntry, mediaElementContainer)
+      if (options.autoplay) player.togglePlayback()
+    }
     renderRows()
   }
 
@@ -208,13 +299,14 @@ app.innerHTML = `
   }
 
   function handleFileSelection(input, options) {
-    if (input.files.length === 0) {
+    const files = Array.from(input.files ?? [])
+    if (files.length === 0) {
       if (options?.isFolder) importStatus.textContent = 'No se encontraron archivos en la carpeta seleccionada.'
       input.value = ''
       return
     }
 
-    const result = importFiles(input.files, libraryEntries, URL.createObjectURL, options)
+    const result = importFiles(files, libraryEntries, URL.createObjectURL, options)
     libraryEntries = libraryEntries.concat(result.entries)
     renderRows()
     if (options?.isFolder && result.summary.added === 0 && result.summary.duplicates === 0 && result.summary.unsupported > 0) {
@@ -226,6 +318,7 @@ app.innerHTML = `
   }
 
   function clearLibrary() {
+    player.clear()
     libraryEntries.forEach((entry) => revokeEntry(entry))
     libraryEntries = []
     selectedEntryId = null
@@ -245,13 +338,23 @@ app.innerHTML = `
   libraryList.addEventListener('click', handleRowSelection)
   queueList.addEventListener('click', handleRowSelection)
   clearLibraryButton.addEventListener('click', clearLibrary)
+  playButton.addEventListener('click', () => player.togglePlayback())
+  previousButton.addEventListener('click', () => {
+    const index = getAdjacentIndex(selectedIndex(), -1, libraryEntries.length)
+    if (index !== -1) selectEntry(libraryEntries[index].id)
+  })
+  nextButton.addEventListener('click', () => {
+    const index = getAdjacentIndex(selectedIndex(), 1, libraryEntries.length)
+    if (index !== -1) selectEntry(libraryEntries[index].id)
+  })
+  progress.addEventListener('input', () => player.seek(progress.value))
+  volumeInput.addEventListener('input', () => player.setVolume(Number(volumeInput.value) / 100))
+  muteButton.addEventListener('click', () => {
+    player.toggleMute()
+  })
 
-  if (!('webkitdirectory' in folderInput)) {
-    addFolderButtons.forEach((button) => {
-      button.disabled = true
-      button.setAttribute('aria-describedby', 'folder-support-note')
-    })
-    folderSupportNote.textContent = 'La selección de carpetas no está disponible en este navegador. Añade archivos individuales.'
+  if (!folderPickerSupported) {
+    folderSupportNote.textContent = 'La selección de carpetas no está disponible en este navegador. El selector se abrirá como selección de archivos; añade archivos individuales.'
   }
 
   renderRows()
