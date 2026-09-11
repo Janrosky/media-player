@@ -1,13 +1,13 @@
-# Umbral
+# Orbixa Player
 
-Reproductor multimedia web **local-first** para escuchar audio y reproducir vídeo desde archivos que eliges en tu propio dispositivo. Umbral está construido con Vite, Vanilla JavaScript, HTML y CSS, con una interfaz Liquid Glass premium y responsive.
+Reproductor multimedia web **local-first** para escuchar audio y reproducir vídeo desde archivos que eliges en tu propio dispositivo. Orbixa Player está construido con Vite, Vanilla JavaScript, HTML y CSS, con una interfaz premium y responsive alineada con Orbixa Downloader.
 
 [![Vite](https://img.shields.io/badge/Vite-8.x-646CFF?logo=vite&logoColor=white)](https://vite.dev/)
 [![JavaScript](https://img.shields.io/badge/JavaScript-ES%20Modules-F7DF1E?logo=javascript&logoColor=111111)](https://developer.mozilla.org/docs/Web/JavaScript)
 
 ## Propuesta de valor
 
-Umbral trata tus archivos como archivos locales: los seleccionas explícitamente, se crean referencias temporales en el navegador y puedes reproducirlos sin subirlos a un servidor.
+Orbixa Player trata tus archivos como archivos locales: los seleccionas explícitamente, se crean referencias temporales en el navegador y puedes reproducirlos sin subirlos a un servidor.
 
 Sus principios son:
 
@@ -55,7 +55,7 @@ Estas ideas no forman parte de la funcionalidad actual y necesitan diseño, impl
 
 - La prioridad de compatibilidad es **Chrome, Edge y Brave basados en Chromium**.
 - La selección de carpetas depende de `webkitdirectory`, una capacidad con disponibilidad principalmente Chromium. En navegadores que no la expongan, usa **Añadir archivos**.
-- La compatibilidad de codecs no la decide Umbral: depende del navegador, el sistema operativo y los códecs disponibles. Un archivo admitido por su extensión o MIME puede no decodificarse.
+- La compatibilidad de codecs no la decide Orbixa Player: depende del navegador, el sistema operativo y los códecs disponibles. Un archivo admitido por su extensión o MIME puede no decodificarse.
 - Algunos archivos pueden tener MIME vacío o genérico al seleccionarse desde una carpeta; el proyecto aplica un fallback limitado para extensiones de audio conocidas en ese flujo.
 - La biblioteca es temporal y se pierde al recargar o cerrar la página. No existe persistencia entre sesiones.
 - Los navegadores pueden bloquear la reproducción automática con sonido según sus políticas; en ese caso, inicia la reproducción con el control de play.
@@ -129,11 +129,11 @@ Sirve localmente la build generada para comprobarla antes de compartirla o despl
 ## Flujo de importación y reproducción
 
 1. El usuario selecciona archivos o una carpeta desde el selector del navegador.
-2. Umbral recibe los objetos `File`, conserva la ruta relativa cuando existe y filtra los tipos admitidos; “Añadir carpeta” acepta solo archivos de audio y descarta e informa los vídeos y tipos no compatibles.
+2. Orbixa Player recibe los objetos `File`, conserva la ruta relativa cuando existe y filtra los tipos admitidos; “Añadir carpeta” acepta solo archivos de audio y descarta e informa los vídeos y tipos no compatibles.
 3. Cada entrada aceptada recibe una object URL temporal y se añade a la biblioteca de la sesión; los duplicados se omiten.
 4. Al seleccionar una entrada, el reproductor crea un elemento `audio` o `video`, carga su object URL y muestra su estado.
 5. Los eventos nativos actualizan el tiempo, la duración, el progreso, el volumen y los errores.
-6. Al finalizar, Umbral selecciona el siguiente elemento disponible y puede reproducirlo automáticamente.
+6. Al finalizar, Orbixa Player selecciona el siguiente elemento disponible y puede reproducirlo automáticamente.
 7. Al limpiar o descartar la biblioteca, se detienen los elementos anteriores y se revocan las object URLs de sus entradas para liberar referencias temporales. Cambiar la pista seleccionada no revoca la URL, porque la entrada anterior sigue en la biblioteca.
 
 ## Privacidad y seguridad
@@ -169,7 +169,7 @@ Para elegir una tarea, empieza por un problema reproducible y acotado, revisa si
 
 ## Fuera de alcance y decisiones técnicas
 
-Umbral se centra en reproducir archivos que el usuario selecciona localmente. Por diseño, no incluye:
+Orbixa Player se centra en reproducir archivos que el usuario selecciona localmente. Por diseño, no incluye:
 
 - Descargas desde YouTube, SoundCloud u otras plataformas.
 - Extracción de streams o resolución de URLs remotas.
@@ -186,4 +186,4 @@ La decisión de usar Vanilla JavaScript y ES Modules mantiene pequeño el runtim
 
 ## Participa
 
-Umbral todavía está evolucionando. Las mejoras más útiles son concretas, reproducibles y respetuosas con el carácter local-first del proyecto: una prueba que capture un caso real, una mejora de accesibilidad o una corrección bien explicada puede ser un excelente primer Pull Request.
+Orbixa Player todavía está evolucionando. Las mejoras más útiles son concretas, reproducibles y respetuosas con el carácter local-first del proyecto: una prueba que capture un caso real, una mejora de accesibilidad o una corrección bien explicada puede ser un excelente primer Pull Request.

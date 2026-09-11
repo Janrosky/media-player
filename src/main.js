@@ -6,15 +6,25 @@ const app = document.querySelector('#app')
 
 app.innerHTML = `
   <header class="site-header">
-    <a class="brand" href="/" aria-label="Umbral, inicio">
-      <span class="brand-mark" aria-hidden="true">U</span>
+    <a class="brand" href="/" aria-label="Orbixa Player, inicio">
+      <img class="brand-mark" src="/brand/orbixa-player-icon.png" alt="" />
       <span>
-        <strong>Umbral</strong>
-        <small>reproductor local</small>
+        <strong>ORBIXA</strong>
+        <small>Player · sesión local</small>
       </span>
     </a>
     <div class="header-actions">
-      <p class="privacy-note"><span class="privacy-dot" aria-hidden="true"></span> Tus archivos no salen de este dispositivo</p>
+      <p class="privacy-note"><span class="privacy-dot" aria-hidden="true"></span> Tus archivos permanecen en este dispositivo</p>
+      <label class="theme-picker" for="theme-select">
+        <span class="sr-only">Tema de color</span>
+        <span class="theme-picker-icon" aria-hidden="true">◐</span>
+        <select id="theme-select">
+          <option value="coral">Coral Orbixa</option>
+          <option value="violet">Violeta</option>
+          <option value="ocean">Océano</option>
+          <option value="lime">Lima</option>
+        </select>
+      </label>
       <button class="button button-primary add-files-button" type="button" aria-describedby="import-status">
         <span aria-hidden="true">+</span>
         Añadir archivos
@@ -37,6 +47,17 @@ app.innerHTML = `
           <h1 id="library-title">Biblioteca</h1>
         </div>
         <span class="count" aria-label="0 archivos">0</span>
+      </div>
+      <div class="library-tools" aria-label="Buscar y filtrar la biblioteca">
+        <label class="search-field" for="library-search">
+          <span aria-hidden="true">⌕</span>
+          <input id="library-search" type="search" placeholder="Buscar en tu música" autocomplete="off" />
+        </label>
+        <div class="filter-chips" aria-label="Tipo de archivo">
+          <button class="filter-chip is-active" type="button" data-filter="all" aria-pressed="true">Todo</button>
+          <button class="filter-chip" type="button" data-filter="audio" aria-pressed="false">Audio</button>
+          <button class="filter-chip" type="button" data-filter="video" aria-pressed="false">Vídeo</button>
+        </div>
       </div>
       <div class="empty-state empty-library">
         <span class="empty-icon" aria-hidden="true">+</span>
@@ -63,7 +84,7 @@ app.innerHTML = `
       </div>
       <div class="player-empty" aria-live="polite">
         <div class="media-region">
-          <div class="record" aria-hidden="true"><span>U</span></div>
+          <div class="record" aria-hidden="true"><img src="/brand/orbixa-player-icon.png" alt="" /></div>
           <div class="media-element-container"></div>
         </div>
         <p class="player-message">Selecciona un archivo para reproducirlo</p>
@@ -71,9 +92,11 @@ app.innerHTML = `
       </div>
       <div class="player-controls" aria-label="Controles de reproducción">
         <div class="transport-controls">
-          <button class="icon-button" type="button" aria-label="Archivo anterior" disabled>⏮</button>
+          <button class="icon-button shuffle-button" type="button" aria-label="Mezcla no disponible" disabled>⇄</button>
+          <button class="icon-button previous-button" type="button" aria-label="Archivo anterior" disabled>⏮</button>
           <button class="play-button" type="button" aria-label="Reproducir" disabled>▶</button>
-          <button class="icon-button" type="button" aria-label="Archivo siguiente" disabled>⏭</button>
+          <button class="icon-button next-button" type="button" aria-label="Archivo siguiente" disabled>⏭</button>
+          <button class="icon-button repeat-button" type="button" aria-label="Repetición no disponible" disabled>↻</button>
         </div>
         <div class="timeline-row">
           <span class="current-time">0:00</span>
@@ -82,7 +105,7 @@ app.innerHTML = `
           <span class="duration-time">--:--</span>
         </div>
         <div class="volume-row">
-          <button class="icon-button small-button mute-button" type="button" aria-label="Silenciar" disabled>⌕</button>
+          <button class="icon-button small-button mute-button" type="button" aria-label="Silenciar" disabled>🔊</button>
           <label class="sr-only" for="volume">Volumen</label>
           <input id="volume" type="range" min="0" max="100" value="70" disabled />
         </div>
@@ -106,8 +129,22 @@ app.innerHTML = `
     </section>
   </main>
 
+  <div class="mini-player" hidden>
+    <button class="mini-player-open" type="button" aria-label="Abrir reproductor">
+      <img class="mini-artwork" src="/brand/orbixa-player-icon.png" alt="" />
+      <span class="mini-copy"><strong class="mini-title">Nada seleccionado</strong><small class="mini-status">En espera</small></span>
+    </button>
+    <button class="mini-play-button" type="button" aria-label="Reproducir" disabled>▶</button>
+  </div>
+
+  <nav class="mobile-nav" aria-label="Navegación del reproductor">
+    <button class="mobile-nav-button is-active" type="button" data-mobile-view="library" aria-pressed="true"><span aria-hidden="true">♫</span>Biblioteca</button>
+    <button class="mobile-nav-button" type="button" data-mobile-view="player" aria-pressed="false"><span aria-hidden="true">▶</span>Reproductor</button>
+    <button class="mobile-nav-button" type="button" data-mobile-view="queue" aria-pressed="false"><span aria-hidden="true">≡</span>Cola</button>
+  </nav>
+
   <footer class="site-footer">
-    <span>UMBRAL / SESIÓN LOCAL</span>
+    <span>ORBIXA PLAYER / SESIÓN LOCAL</span>
     <span>Sin cuenta · Sin nube · Sin rastreo</span>
   </footer>
 `
@@ -132,18 +169,30 @@ app.innerHTML = `
   const playerSubmessage = document.querySelector('.player-submessage')
   const playerStatus = document.querySelector('.player-status')
   const playButton = document.querySelector('.play-button')
+  const miniPlayer = document.querySelector('.mini-player')
+  const miniPlayerOpen = document.querySelector('.mini-player-open')
+  const miniPlayButton = document.querySelector('.mini-play-button')
+  const miniTitle = document.querySelector('.mini-title')
+  const miniStatus = document.querySelector('.mini-status')
   const mediaRegion = document.querySelector('.media-region')
   const mediaElementContainer = document.querySelector('.media-element-container')
-  const previousButton = document.querySelector('.transport-controls .icon-button:first-child')
-  const nextButton = document.querySelector('.transport-controls .icon-button:last-child')
+  const previousButton = document.querySelector('.previous-button')
+  const nextButton = document.querySelector('.next-button')
   const progress = document.querySelector('#progress')
   const currentTime = document.querySelector('.current-time')
   const durationTime = document.querySelector('.duration-time')
   const muteButton = document.querySelector('.mute-button')
   const volumeInput = document.querySelector('#volume')
+  const librarySearch = document.querySelector('#library-search')
+  const filterButtons = document.querySelectorAll('.filter-chip')
+  const mobileNavButtons = document.querySelectorAll('.mobile-nav-button')
+  const themeSelect = document.querySelector('#theme-select')
 
   let libraryEntries = []
   let selectedEntryId = null
+  let libraryQuery = ''
+  let libraryFilter = 'all'
+  let playbackState = PLAYER_STATES.idle
 
   function selectedIndex() {
     return libraryEntries.findIndex((entry) => entry.id === selectedEntryId)
@@ -172,8 +221,22 @@ app.innerHTML = `
     muteButton.setAttribute('aria-label', muted ? 'Activar sonido' : 'Silenciar')
   }
 
+  function updateMiniPlayer(entry) {
+    const hasEntry = Boolean(entry)
+    document.body.classList.toggle('has-selection', hasEntry)
+    miniPlayer.hidden = !hasEntry
+    miniPlayButton.disabled = !hasEntry
+    if (!hasEntry) return
+    const isPlaying = playbackState === PLAYER_STATES.playing
+    miniTitle.textContent = entry.name
+    miniStatus.textContent = playerStateLabels[playbackState]
+    miniPlayButton.textContent = isPlaying ? '⏸' : '▶'
+    miniPlayButton.setAttribute('aria-label', isPlaying ? 'Pausar' : 'Reproducir')
+  }
+
   const player = createMediaPlayer({
     onStateChange: ({ state, entry, volume, muted }) => {
+      playbackState = state
       playerStatus.textContent = playerStateLabels[state]
       playButton.disabled = !entry
       const isPlaying = state === PLAYER_STATES.playing
@@ -196,6 +259,7 @@ app.innerHTML = `
       } else if (entry) {
         playerSubmessage.textContent = playerStateLabels[state]
       }
+      updateMiniPlayer(entry)
     },
     onTimeUpdate: ({ currentTime: elapsed, duration, seekable }) => {
       const hasDuration = Number.isFinite(duration) && duration > 0
@@ -228,6 +292,8 @@ app.innerHTML = `
   function createMediaRow(entry) {
     const row = document.createElement('li')
     const button = document.createElement('button')
+    const artwork = document.createElement('span')
+    const copy = document.createElement('span')
     const name = document.createElement('span')
     const metadata = document.createElement('span')
 
@@ -236,21 +302,36 @@ app.innerHTML = `
     button.type = 'button'
     button.dataset.entryId = entry.id
     button.setAttribute('aria-label', `Seleccionar ${entry.name}`)
+    artwork.className = `row-artwork row-artwork-${entry.mediaType}`
+    artwork.setAttribute('aria-hidden', 'true')
+    artwork.textContent = entry.mediaType === 'audio' ? '♫' : '▶'
+    copy.className = 'media-copy'
     name.className = 'media-name'
     name.textContent = entry.name
     if (entry.relativePath) button.title = entry.relativePath
     metadata.className = 'media-metadata'
     metadata.textContent = `${entry.mediaType === 'audio' ? 'Audio' : 'Vídeo'} · ${formatFileSize(entry.size)}`
-    button.append(name, metadata)
+    copy.append(name, metadata)
+    button.append(artwork, copy)
     row.append(button)
     return row
   }
 
+  function matchingEntries() {
+    const normalizedQuery = libraryQuery.trim().toLocaleLowerCase('es')
+    return libraryEntries.filter((entry) => {
+      const matchesType = libraryFilter === 'all' || entry.mediaType === libraryFilter
+      const matchesQuery = !normalizedQuery || entry.name.toLocaleLowerCase('es').includes(normalizedQuery)
+      return matchesType && matchesQuery
+    })
+  }
+
   function renderRows() {
     const hasEntries = libraryEntries.length > 0
+    const visibleEntries = matchingEntries()
     const selectedEntry = libraryEntries.find((entry) => entry.id === selectedEntryId)
 
-    libraryList.replaceChildren(...libraryEntries.map(createMediaRow))
+    libraryList.replaceChildren(...visibleEntries.map(createMediaRow))
     queueList.replaceChildren(...libraryEntries.map(createMediaRow))
     libraryList.hidden = !hasEntries
     queueList.hidden = !hasEntries
@@ -273,6 +354,17 @@ app.innerHTML = `
     } else {
       playerMessage.textContent = 'Selecciona un archivo para reproducirlo'
     }
+    updateMiniPlayer(selectedEntry)
+  }
+
+  function setMobileView(view) {
+    document.body.classList.remove('mobile-view-library', 'mobile-view-player', 'mobile-view-queue')
+    document.body.classList.add(`mobile-view-${view}`)
+    mobileNavButtons.forEach((button) => {
+      const active = button.dataset.mobileView === view
+      button.classList.toggle('is-active', active)
+      button.setAttribute('aria-pressed', String(active))
+    })
   }
 
   function selectEntry(entryId, options = {}) {
@@ -281,6 +373,7 @@ app.innerHTML = `
     if (selectedEntry) {
       player.load(selectedEntry, mediaElementContainer)
       if (options.autoplay) player.togglePlayback()
+      if (window.matchMedia('(max-width: 699px)').matches) setMobileView('player')
     }
     renderRows()
   }
@@ -322,6 +415,8 @@ app.innerHTML = `
     libraryEntries.forEach((entry) => revokeEntry(entry))
     libraryEntries = []
     selectedEntryId = null
+    libraryQuery = ''
+    librarySearch.value = ''
     renderRows()
     importStatus.textContent = 'Biblioteca limpiada.'
     document.querySelector('.add-files-button').focus()
@@ -339,6 +434,8 @@ app.innerHTML = `
   queueList.addEventListener('click', handleRowSelection)
   clearLibraryButton.addEventListener('click', clearLibrary)
   playButton.addEventListener('click', () => player.togglePlayback())
+  miniPlayButton.addEventListener('click', () => player.togglePlayback())
+  miniPlayerOpen.addEventListener('click', () => setMobileView('player'))
   previousButton.addEventListener('click', () => {
     const index = getAdjacentIndex(selectedIndex(), -1, libraryEntries.length)
     if (index !== -1) selectEntry(libraryEntries[index].id)
@@ -352,9 +449,27 @@ app.innerHTML = `
   muteButton.addEventListener('click', () => {
     player.toggleMute()
   })
+  librarySearch.addEventListener('input', () => {
+    libraryQuery = librarySearch.value
+    renderRows()
+  })
+  filterButtons.forEach((button) => button.addEventListener('click', () => {
+    libraryFilter = button.dataset.filter
+    filterButtons.forEach((filterButton) => {
+      const active = filterButton === button
+      filterButton.classList.toggle('is-active', active)
+      filterButton.setAttribute('aria-pressed', String(active))
+    })
+    renderRows()
+  }))
+  mobileNavButtons.forEach((button) => button.addEventListener('click', () => setMobileView(button.dataset.mobileView)))
+  themeSelect.addEventListener('change', () => {
+    document.documentElement.dataset.theme = themeSelect.value
+  })
 
   if (!folderPickerSupported) {
     folderSupportNote.textContent = 'La selección de carpetas no está disponible en este navegador. El selector se abrirá como selección de archivos; añade archivos individuales.'
   }
 
+  setMobileView('library')
   renderRows()
